@@ -80,6 +80,8 @@ Apple M4 Pro (64 GB), `benchmarks/suite.py`: every configuration in a fresh proc
 
 PyTorch's footprint on short inputs is lower because it keeps no allocator cache and memory-maps the checkpoint. Much of MLX's batch footprint is the cache: with a 1 GiB cap, the resident-embedding FP32 run of 2,000 questions peaked at 3,971 MiB instead of 7,045 MiB, at about 5% lower throughput (see the cache table above).
 
+For a server taking single requests, two threads that each tokenize and score their own requests under their own `mx.stream(mx.new_stream(mx.gpu))` raised throughput from 117 to 149 requests/s on this machine, with outputs identical to serial calls; median latency rose from 6.95 ms to 9.89 ms, and four or more threads added no throughput.
+
 Reproduce on a Mac with the upstream Julia source importable:
 
 ```sh

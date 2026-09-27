@@ -129,6 +129,12 @@ class ModernBertEmbeddings(nn.Module):
         return self.norm(self.tok_embeddings(input_ids))
 
 
+@mx.compile
+def gated_gelu(values_gate: mx.array) -> mx.array:
+    values, gate = mx.split(values_gate, 2, axis=-1)
+    return nn.gelu(values) * gate
+
+
 class ModernBertMLP(nn.Module):
     def __init__(self, config: EncoderConfig):
         super().__init__()
@@ -136,8 +142,7 @@ class ModernBertMLP(nn.Module):
         self.Wo = nn.Linear(config.intermediate_size, config.hidden_size, bias=config.mlp_bias)
 
     def __call__(self, hidden: mx.array) -> mx.array:
-        values, gate = mx.split(self.Wi(hidden.astype(self.Wi.weight.dtype)), 2, axis=-1)
-        return self.Wo(nn.gelu(values) * gate).astype(hidden.dtype)
+        return self.Wo(gated_gelu(self.Wi(hidden.astype(self.Wi.weight.dtype)))).astype(hidden.dtype)
 
 
 class ModernBertAttention(nn.Module):
