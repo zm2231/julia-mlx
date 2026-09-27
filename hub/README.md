@@ -2,6 +2,7 @@
 license: apache-2.0
 library_name: mlx
 base_model: SupersonicLabs/Julia-1
+base_model_relation: quantized
 pipeline_tag: text-classification
 tags:
   - mlx
