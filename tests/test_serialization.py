@@ -109,3 +109,13 @@ def test_map_tensor_rejects_malformed_entries(tmp_path, entry):
 
     with pytest.raises(ValueError):
         map_tensor(_safetensors(tmp_path / "bad.safetensors", entry), "t")
+
+
+def test_resolve_checkpoint_uses_local_directories_and_hub_ids(tmp_path, monkeypatch):
+    from julia_mlx import checkpoint
+
+    calls = []
+    monkeypatch.setattr(checkpoint, "snapshot_download", lambda repo_id, allow_patterns: calls.append((repo_id, allow_patterns)) or str(tmp_path))
+    assert checkpoint.resolve_checkpoint(tmp_path) == tmp_path and calls == []
+    assert checkpoint.resolve_checkpoint("SupersonicLabs/Julia-1") == tmp_path
+    assert calls == [("SupersonicLabs/Julia-1", checkpoint.CHECKPOINT_FILES)]

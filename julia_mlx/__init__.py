@@ -1,4 +1,4 @@
-from .checkpoint import download_model, load_model, save_model
+from .checkpoint import load_model, resolve_checkpoint, save_model
 from .encoding import (
     QTYPES,
     collate,
@@ -14,5 +14,5 @@ from .tokenizer import JuliaTokenizer
 
 __all__ = [
     "QTYPES", "JuliaDecisionModel", "JuliaEngine", "JuliaTokenizer", "RouteResult", "Router", "collate", "collate_encoded",
-    "display_probabilities", "download_model", "load_model", "save_model", "sequence", "validate_row",
+    "display_probabilities", "load_model", "resolve_checkpoint", "save_model", "sequence", "validate_row",
 ]

@@ -5,11 +5,21 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "julia-mlx"
 version = "0.2.0"
-description = "MLX inference runtime for SupersonicLabs/Julia-1"
+description = "Julia-1 decision model on Apple silicon with MLX, at parity with the reference runtime"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENCE"]
 requires-python = ">=3.11"
+authors = [{ name = "Merchantry LLC" }]
+keywords = ["mlx", "apple-silicon", "julia-1", "modernbert", "classification", "routing", "decision-model"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
     "huggingface-hub>=0.27.0",
     "mlx>=0.32",
@@ -17,6 +27,11 @@ dependencies = [
     "safetensors>=0.5",
     "tokenizers>=0.22",
 ]
+
+[project.urls]
+Homepage = "https://github.com/zm2231/julia-mlx"
+Issues = "https://github.com/zm2231/julia-mlx/issues"
+Model = "https://huggingface.co/SupersonicLabs/Julia-1"
 
 [project.optional-dependencies]
 eval = ["pyarrow>=17"]

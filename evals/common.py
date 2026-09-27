@@ -32,10 +32,13 @@ def parse(arguments: argparse.ArgumentParser) -> argparse.Namespace:
 
 
 def load_engine(args: argparse.Namespace) -> Any:
+    from julia_mlx import load_model, resolve_checkpoint
+
     if args.backend == "torch":
-        from julia.inference import load_model  # pyright: ignore[reportMissingImports]
-        return load_model(args.checkpoint, device="cpu", **ENGINE)
-    from julia_mlx import load_model
+        from julia.inference import (  # pyright: ignore[reportMissingImports]
+            load_model as load_torch,
+        )
+        return load_torch(str(resolve_checkpoint(args.checkpoint)), device="cpu", **ENGINE)
     return load_model(args.checkpoint, dtype=args.dtype, embedding=args.embedding, **ENGINE)
 
 

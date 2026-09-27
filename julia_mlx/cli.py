@@ -7,7 +7,7 @@ from .checkpoint import load_model
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run Julia-1 through MLX.")
-    parser.add_argument("checkpoint", type=Path)
+    parser.add_argument("checkpoint", help="local checkpoint directory or Hugging Face repo ID")
     parser.add_argument("request", type=Path)
     parser.add_argument("--max-length", type=int)
     parser.add_argument("--dtype", choices=["float32", "float16"], default="float32")

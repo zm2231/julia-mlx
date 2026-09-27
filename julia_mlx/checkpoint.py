@@ -24,14 +24,18 @@ def auto_cache_limit() -> int:
     return 1 << 30 if working_set is None else min(4 << 30, int(working_set) // 8)
 
 
-def download_model(destination: str | Path) -> Path:
-    return Path(snapshot_download("SupersonicLabs/Julia-1", local_dir=str(destination)))
+CHECKPOINT_FILES = ["julia_config.json", "encoder/config.json", "model.safetensors", "tokenizer/*"]
+
+
+def resolve_checkpoint(checkpoint: str | Path) -> Path:
+    root = Path(checkpoint)
+    return root if root.is_dir() else Path(snapshot_download(str(checkpoint), allow_patterns=CHECKPOINT_FILES))
 
 
 def load_model(checkpoint: str | Path, *, max_length: int | None = None, head_length: int = 256, batch_size: int = 16,
                encoding_cache: int = 2048, token_cache: int = 8192, padding_ratio: float = 1.25, strict_encoding: bool = False,
                dtype: str = "float32", embedding: Literal["mapped", "resident"] = "mapped", memory_cache_limit: int | Literal["auto"] | None = "auto") -> JuliaEngine:
-    root = Path(checkpoint)
+    root = resolve_checkpoint(checkpoint)
     julia_config = json.loads((root / "julia_config.json").read_text())
     if julia_config.get("format_version") != 1:
         raise ValueError("unsupported Julia checkpoint format")
