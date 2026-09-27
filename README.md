@@ -4,12 +4,16 @@ Apple-silicon inference for [SupersonicLabs/Julia-1](https://huggingface.co/Supe
 
 ## Status
 
-The supported path is finite-choice inference: `state`, `question`, 2–20 options, and a `choice`, `score`, or `noul` type, plus the hierarchical `Router` for larger choice sets. The release gate is the published Julia-1 CPU evaluation: on the pinned typed-decisions test split, FP32 MLX must reproduce **1,451/2,000** (choice 426, noul 483, score 542) and agree with the PyTorch reference on the winning option for all 2,000 questions.
+The supported path is finite-choice inference: `state`, `question`, 2–20 options, and a `choice`, `score`, or `noul` type, plus the hierarchical `Router` for larger choice sets. The release gates are the published Julia-1 CPU evaluation ([record](https://supersoniclabs.ia.br/data/julia-1-cpu-20260925.json)), run on the same pinned data and protocol. FP32 MLX must reproduce the published counts and pick the same winner as PyTorch on every example:
 
-| Mode | typed-decisions | Top-1 agreement with PyTorch | Max logit difference |
-| --- | ---: | ---: | ---: |
-| FP32 (default) | 1,451 / 2,000 | 2,000 / 2,000 | 0.00115 |
-| `dtype="float16"` | 1,451 / 2,000 | 1,998 / 2,000 | 0.46 |
+| Evaluation | Published (PyTorch CPU) | MLX FP32 | MLX FP16 | Top-1 agreement with PyTorch (FP32 / FP16) | Max logit difference (FP32 / FP16) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| typed-decisions (choice / noul / score) | 1,451 / 2,000 (426 / 483 / 542) | 1,451 (426 / 483 / 542) | 1,451 | 2,000 / 1,998 of 2,000 | 0.00115 / 0.46 |
+| AG News pilot, 4 labels | 94 / 100 | 94 | 94 | 100 / 100 | 0.000195 / 0.132 (both pilots) |
+| DAIR Emotion pilot, 6 labels | 86 / 100 | 86 | 86 | 100 / 100 | 0.000195 / 0.132 (both pilots) |
+| Banking77 pilot, 72 labels | 60 / 100 via an unpublished shortlist | 62 via `Router` | 62 via `Router` | 100 / 100 | — |
+
+The pilots rebuild the 100-example samples of the pinned [Jev protocol](https://github.com/AbdelStark/jev-benchmarks/tree/0d610cc53e79bcbec691312b0c4adb4a0e371642) and check them against its manifest hash. The published Banking77 run narrows the 72 labels with a ranking shortlist whose procedure is not published (and abstains three times), so here Banking77 runs the package `Router` over all 72 labels, where PyTorch also scores 62, and is gated on agreement with PyTorch. The MASSIVE scenario results on the model card came from a CUDA BF16 run with no published protocol and are not reproduced.
 
 FP32 is the parity mode. FP16 runs the encoder projections in half precision while the residual stream, norms, embeddings, and decision head stay FP32: from the middle layers on, Julia-1's residual stream carries outlier channels near 4,000, where FP16 cannot represent small updates. The 256k-row vocabulary embedding is 98M of the 144M parameters, and a request reads only the rows of its own tokens. By default (`embedding="mapped"`) it stays a read-only memory map of `model.safetensors`: each forward gathers its unique token rows on the CPU (about 0.1 ms for a typical request) and sends only those to the GPU, so MLX holds 175 MiB of weights instead of 550 MiB. The rows are the checkpoint's own FP32 bytes, so results are identical to `embedding="resident"`, which loads the table into MLX and is required to fine-tune the embedding.
 
@@ -39,7 +43,7 @@ result = engine.predict(
 print(result["answers"]["team"])
 ```
 
-The legacy list API (`engine.predict(rows)`, `engine.logits(rows)`), `probabilities=False`, `encoding_info`, and `Router` follow the upstream runtime. Like upstream, the named-question API scores Boolean questions against the literal options `false` and `true`; the published evaluation instead passes each question's false/true descriptions as option text, which is worth 92 correct answers on typed-decisions. Pass descriptive options through `logits`/`predict(rows)` when you have them.
+The legacy list API (`engine.predict(rows)`, `engine.logits(rows)`), `probabilities=False`, `encoding_info`, and `Router` follow the upstream runtime. As upstream, a `noul` question takes optional `criteria` mapping `false` and `true` to descriptions and falls back to the literal options `false` and `true` without them. Supply the descriptions when you have them: on typed-decisions, literal options score 391/600 Boolean questions instead of 483.
 
 `load_model` bounds MLX's process-wide allocator cache (`memory_cache_limit="auto"`: the smaller of 4 GiB and one eighth of the GPU's recommended working set; pass bytes to override or `None` to keep MLX's default). MLX keeps freed buffers for reuse, keyed by size, and varied batch shapes otherwise grow the cache without bound: 24.6 GiB on 2,000 typed questions. Measured on an M4 Pro (64 GB):
 
@@ -93,10 +97,11 @@ PYTHONPATH=Julia-1 python benchmarks/suite.py Julia-1
 ```sh
 python -m pip install -e ".[eval,test]"
 JULIA_CHECKPOINT=Julia-1 PYTHONPATH=Julia-1 pytest -q tests
-python evals/typed_decisions.py Julia-1 --reference evals/reference/typed-decisions-torch-cpu.json
+python evals/typed_decisions.py Julia-1
+python evals/pilots.py Julia-1
 ```
 
-Without `PYTHONPATH` pointing at the upstream source, the PyTorch comparisons skip and the typed-decisions gate still runs against the committed PyTorch reference logits. The gate's logit tolerance is 2e-3: on these 2,000 real questions, FP32 MLX differs from PyTorch CPU by at most 0.00115, identical to the previous MLX implementation's measured delta, while the synthetic-input parity tests keep their 2e-4 bound.
+Without `PYTHONPATH` pointing at the upstream source, the PyTorch comparisons skip and both gates still run against the committed PyTorch reference outputs in `evals/reference/` (regenerate with `--backend torch --write-reference PATH`). The gates' logit tolerance is 2e-3: FP32 MLX differs from PyTorch CPU by at most 0.00115 on the 2,000 typed-decisions questions and 0.000195 on the AG News and Emotion pilots, while the synthetic-input parity tests keep their 2e-4 bound.
 
 ## Attribution
 

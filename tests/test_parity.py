@@ -162,6 +162,29 @@ def test_typed_api_encoding_audit_and_caches(mlx_engine):
     assert mlx_engine.max_length == 8192
 
 
+def test_typed_api_matches_upstream(torch_engine, mlx_engine):
+    typed = pytest.importorskip("julia.typed")
+    state = {"ticket": "I was charged twice for the same order.", "tier": "gold"}
+    questions = {
+        "team": {"type": "choice", "instructions": "Which team should handle this request?", "criteria": {"billing": CHOICES[0], "shipping": CHOICES[1], "access": CHOICES[2]}},
+        "urgency": {"type": "score", "instructions": "How urgent is this request?", "criteria": ["Low", "Medium", "High"]},
+        "refund": {"type": "noul", "instructions": "Is a refund owed?", "criteria": {"true": "The customer paid twice", "false": "The customer paid once"}},
+        "escalate": {"type": "noul", "instructions": "Should this be escalated?"},
+    }
+    expected, actual = typed.predict_typed(torch_engine, state, questions)["answers"], mlx_engine.predict(state=state, questions=questions)["answers"]
+    assert expected.keys() == actual.keys()
+    for identifier, answer in expected.items():
+        assert answer.keys() == actual[identifier].keys()
+        assert answer.get("choice") == actual[identifier].get("choice")
+        assert max(abs(value - actual[identifier]["probabilities"][key]) for key, value in answer["probabilities"].items()) < 1e-4
+    for criteria in ({"yes": "Paid twice", "no": "Paid once"}, {"true": "Paid twice"}, ["Paid once", "Paid twice"]):
+        invalid = {"refund": {"type": "noul", "instructions": "Refund?", "criteria": criteria}}
+        with pytest.raises(ValueError, match="(?i)noul criteria"):
+            typed.predict_typed(torch_engine, state, invalid)
+        with pytest.raises(ValueError, match="(?i)noul criteria"):
+            mlx_engine.predict(state=state, questions=invalid)
+
+
 def test_mapped_embedding_matches_resident_exactly(mlx_engine):
     from mlx.utils import tree_flatten
 

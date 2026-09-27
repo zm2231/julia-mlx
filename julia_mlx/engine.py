@@ -156,7 +156,13 @@ class JuliaEngine:
                     raise ValueError("score requires an ordered rubric")
                 keys, labels = [str(index) for index in range(len(criteria))], criteria
             elif kind == "noul":
-                keys, labels = ["false", "true"], ["false", "true"]
+                keys = ["false", "true"]
+                if criteria is None:
+                    labels = list(keys)
+                elif isinstance(criteria, Mapping) and set(criteria) == set(keys):
+                    labels = [criteria[key] for key in keys]
+                else:
+                    raise ValueError("noul criteria must map false and true to descriptions")
             else:
                 raise ValueError("unsupported question type")
             rows.append({"state": state, "question": question.get("instructions"), "type": kind, "options": labels})
