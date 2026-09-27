@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "julia-mlx"
+version = "0.2.0"
+description = "MLX inference runtime for SupersonicLabs/Julia-1"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENCE"]
+requires-python = ">=3.11"
+dependencies = [
+    "huggingface-hub>=0.27.0",
+    "mlx>=0.32",
+    "numpy>=1.26",
+    "safetensors>=0.5",
+    "tokenizers>=0.22",
+]
+
+[project.optional-dependencies]
+eval = ["pyarrow>=17"]
+test = ["pytest>=8"]
+
+[project.scripts]
+julia-mlx = "julia_mlx.cli:main"
+
+[tool.setuptools]
+packages = ["julia_mlx"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[tool.pyright]
+extraPaths = ["evals"]
